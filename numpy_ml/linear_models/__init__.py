@@ -1,4 +1,5 @@
 """A module containing assorted linear models."""
+"""一个包含各种线性模型的模块。"""
 
 from .ridge import RidgeRegression
 from .glm import GeneralizedLinearModel

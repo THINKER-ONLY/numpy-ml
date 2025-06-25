@@ -1,4 +1,5 @@
 """A module for naive Bayes classifiers"""
+"""朴素贝叶斯分类器模块"""
 import numpy as np
 
 
@@ -6,6 +7,7 @@ class GaussianNBClassifier:
     def __init__(self, eps=1e-6):
         r"""
         A naive Bayes classifier for real-valued data.
+        一个用于实值数据的高斯朴素贝叶斯分类器。
 
         Notes
         -----
@@ -54,6 +56,7 @@ class GaussianNBClassifier:
         eps : float
             A value added to the variance to prevent numerical error. Default
             is 1e-6.
+            加到方差上的一个值，以防止数值计算错误。默认为 1e-6。
 
         Attributes
         ----------
@@ -62,11 +65,15 @@ class GaussianNBClassifier:
             feature means under each class, "sigma", the `(K, M)` array of
             feature variances under each class, and "prior", the `(K,)` array of
             empirical prior probabilities for each class label.
+            模型参数字典： "mean"，每个类别下特征均值的 `(K, M)` 数组；"sigma"，每个类别下特征方差的
+            `(K, M)` 数组；"prior"，每个类别标签的经验先验概率的 `(K,)` 数组。
         hyperparameters : dict
             Dictionary of model hyperparameters
+            模型超参数字典
         labels : :py:class:`ndarray <numpy.ndarray>` of shape `(K,)`
             An array containing the unique class labels for the training
             examples.
+            一个包含训练样本唯一类别标签的数组。
         """
         self.labels = None
         self.hyperparameters = {"eps": eps}
@@ -79,6 +86,7 @@ class GaussianNBClassifier:
     def fit(self, X, y):
         """
         Fit the model parameters via maximum likelihood.
+        通过最大似然估计拟合模型参数。
 
         Notes
         -----
@@ -98,8 +106,10 @@ class GaussianNBClassifier:
         ----------
         X : :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
             A dataset consisting of `N` examples, each of dimension `M`
+            一个包含 `N` 个样本的数据集，每个样本的维度为 `M`。
         y: :py:class:`ndarray <numpy.ndarray>` of shape `(N,)`
             The class label for each of the `N` examples in `X`
+            `X` 中 `N` 个样本的类别标签。
 
         Returns
         -------
@@ -108,15 +118,18 @@ class GaussianNBClassifier:
         P = self.parameters
         H = self.hyperparameters
 
+        # 获取所有唯一的类别标签
         self.labels = np.unique(y)
 
         K = len(self.labels)
         N, M = X.shape
 
+        # 初始化均值、方差和先验概率矩阵
         P["mean"] = np.zeros((K, M))
         P["sigma"] = np.zeros((K, M))
         P["prior"] = np.zeros((K,))
 
+        # 对每个类别，计算特征的均值、方差和类别的先验概率
         for i, c in enumerate(self.labels):
             X_c = X[y == c, :]
 
@@ -129,36 +142,44 @@ class GaussianNBClassifier:
         """
         Use the trained classifier to predict the class label for each example
         in **X**.
+        使用训练好的分类器为 **X** 中的每个样本预测类别标签。
 
         Parameters
         ----------
         X: :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
             A dataset of `N` examples, each of dimension `M`
+            一个包含 `N` 个样本的数据集，每个样本的维度为 `M`。
 
         Returns
         -------
         labels : :py:class:`ndarray <numpy.ndarray>` of shape `(N)`
             The predicted class labels for each example in `X`
+            `X` 中每个样本的预测类别标签。
         """
+        # 计算每个样本在所有类别上的对数后验概率，并返回概率最大的类别标签
         return self.labels[self._log_posterior(X).argmax(axis=1)]
 
     def _log_posterior(self, X):
         r"""
         Compute the (unnormalized) log posterior for each class.
+        计算每个类别的（未归一化）对数后验概率。
 
         Parameters
         ----------
         X: :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
             A dataset of `N` examples, each of dimension `M`
+            一个包含 `N` 个样本的数据集，每个样本的维度为 `M`。
 
         Returns
         -------
         log_posterior : :py:class:`ndarray <numpy.ndarray>` of shape `(N, K)`
             Unnormalized log posterior probability of each class for each
             example in `X`
+            `X` 中每个样本的每个类别的未归一化对数后验概率。
         """
         K = len(self.labels)
         log_posterior = np.zeros((X.shape[0], K))
+        # 对每个类别，计算所有样本属于该类别的对数后验概率
         for i in range(K):
             log_posterior[:, i] = self._log_class_posterior(X, i)
         return log_posterior
@@ -167,6 +188,8 @@ class GaussianNBClassifier:
         r"""
         Compute the (unnormalized) log posterior for the label at index
         `class_idx` in :py:attr:`labels <numpy_ml.linear_models.GaussianNBClassifier.labels>`.
+        计算在 :py:attr:`labels <numpy_ml.linear_models.GaussianNBClassifier.labels>` 中
+        索引为 `class_idx` 的标签的（未归一化）对数后验概率。
 
         Notes
         -----
@@ -193,8 +216,10 @@ class GaussianNBClassifier:
         ----------
         X: :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
             A dataset of `N` examples, each of dimension `M`
+            一个包含 `N` 个样本的数据集，每个样本的维度为 `M`。
         class_idx : int
             The index of the current class in :py:attr:`labels`
+            当前类别在 :py:attr:`labels` 中的索引。
 
         Returns
         -------
@@ -202,13 +227,16 @@ class GaussianNBClassifier:
             Unnormalized log probability of the label at index `class_idx`
             in :py:attr:`labels <numpy_ml.linear_models.GaussianNBClassifier.labels>`
             for each example in `X`
+            对于 `X` 中的每个样本，在 :py:attr:`labels` 中索引为 `class_idx` 的标签的未归一化对数概率。
         """  # noqa: E501
         P = self.parameters
         mu = P["mean"][class_idx]
         prior = P["prior"][class_idx]
         sigsq = P["sigma"][class_idx]
 
-        # log likelihood = log X | N(mu, sigsq)
+        # 计算高斯分布的对数似然 log P(X | C)
+        # log likelihood = log P(X | N(mu, sigsq))
         log_likelihood = -0.5 * np.sum(np.log(2 * np.pi * sigsq))
         log_likelihood -= 0.5 * np.sum(((X - mu) ** 2) / sigsq, axis=1)
+        # 返回对数后验概率 log P(C | X) = log P(X | C) + log P(C)
         return log_likelihood + np.log(prior)

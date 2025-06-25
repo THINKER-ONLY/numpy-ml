@@ -1,4 +1,5 @@
 """Linear regression module."""
+"""线性回归模块。"""
 
 import numpy as np
 
@@ -7,6 +8,7 @@ class LinearRegression:
     def __init__(self, fit_intercept=True):
         r"""
         A weighted linear least-squares regression model.
+        一个加权线性最小二乘回归模型。
 
         Notes
         -----
@@ -45,13 +47,16 @@ class LinearRegression:
         fit_intercept : bool
             Whether to fit an intercept term in addition to the model
             coefficients. Default is True.
+            是否拟合除模型系数外的截距项。默认为 True。
 
         Attributes
         ----------
         beta : :py:class:`ndarray <numpy.ndarray>` of shape `(M, K)` or None
             Fitted model coefficients.
+            拟合后的模型系数。
         sigma_inv : :py:class:`ndarray <numpy.ndarray>` of shape `(N, N)` or None
             Inverse of the data covariance matrix.
+            数据协方差矩阵的逆。
         """
         self.beta = None
         self.sigma_inv = None
@@ -63,6 +68,7 @@ class LinearRegression:
         r"""
         Incrementally update the linear least-squares coefficients for a set of
         new examples.
+        为一组新的样本增量更新线性最小二乘系数。
 
         Notes
         -----
@@ -115,6 +121,11 @@ class LinearRegression:
             `y` share the same weight :math:`w_i`. If None, examples are
             weighted equally, resulting in the standard linear least squares
             update.  Default is None.
+            与 `X` 中样本相关的权重。权重较大的样本对模型拟合的影响更大。
+            当 `y` 是一个向量时（即 `K = 1`），权重应设置为每个测量值方差的倒数
+            （即 :math:`w_i = 1/\sigma^2_i`）。当 `K > 1` 时，假定 `y` 的所有列
+            共享相同的权重 :math:`w_i`。如果为 None，则样本权重相等，此时为标准的
+            线性最小二乘更新。默认为 None。
 
         Returns
         -------
@@ -126,16 +137,19 @@ class LinearRegression:
         X, y = np.atleast_2d(X), np.atleast_2d(y)
 
         X1, Y1 = X.shape[0], y.shape[0]
+        # 如果未提供权重，则默认为单位权重
         weights = np.ones(X1) if weights is None else np.atleast_1d(weights)
         weights = np.squeeze(weights) if weights.size > 1 else weights
 
         err_str = f"weights must have shape ({X1},) but got {weights.shape}"
         assert weights.shape == (X1,), err_str
 
+        # 根据每个样本的权重缩放 X 和 y
         # scale X and y by the weight associated with each example
         W = np.diag(np.sqrt(weights))
         X, y = W @ X, W @ y
 
+        # 根据新样本的数量，选择单样本更新或多样本更新
         self._update1D(X, y, W) if X1 == Y1 == 1 else self._update2D(X, y, W)
         return self
 
@@ -143,13 +157,16 @@ class LinearRegression:
         """Sherman-Morrison update for a single example"""
         beta, S_inv = self.beta, self.sigma_inv
 
+        # 如果需要拟合截距，则将 x 转换为设计向量
         # convert x to a design vector if we're fitting an intercept
         if self.fit_intercept:
             x = np.c_[np.diag(w), x]
 
+        # 通过 Sherman-Morrison 公式更新协方差矩阵的逆
         # update the inverse of the covariance matrix via Sherman-Morrison
         S_inv -= (S_inv @ x.T @ x @ S_inv) / (1 + x @ S_inv @ x.T)
 
+        # 更新模型系数
         # update the model coefficients
         beta += S_inv @ x.T @ (y - x @ beta)
 
@@ -157,21 +174,25 @@ class LinearRegression:
         """Woodbury update for multiple examples"""
         beta, S_inv = self.beta, self.sigma_inv
 
+        # 如果需要拟合截距，则将 X 转换为设计矩阵
         # convert X to a design matrix if we're fitting an intercept
         if self.fit_intercept:
             X = np.c_[np.diag(W), X]
 
         I = np.eye(X.shape[0])  # noqa: E741
 
+        # 通过 Woodbury 恒等式更新协方差矩阵的逆
         # update the inverse of the covariance matrix via Woodbury identity
         S_inv -= S_inv @ X.T @ np.linalg.pinv(I + X @ S_inv @ X.T) @ X @ S_inv
 
+        # 更新模型系数
         # update the model coefficients
         beta += S_inv @ X.T @ (y - X @ beta)
 
     def fit(self, X, y, weights=None):
         r"""
         Fit regression coefficients via maximum likelihood.
+        通过最大似然估计拟合回归系数。
 
         Parameters
         ----------
@@ -180,6 +201,7 @@ class LinearRegression:
         y : :py:class:`ndarray <numpy.ndarray>` of shape `(N, K)`
             The targets for each of the `N` examples in `X`, where each target
             has dimension `K`.
+            `X` 中 `N` 个样本对应的目标值，每个目标值的维度为 `K`。
         weights : :py:class:`ndarray <numpy.ndarray>` of shape `(N,)` or None
             Weights associated with the examples in `X`. Examples
             with larger weights exert greater influence on model fit.  When
@@ -189,6 +211,11 @@ class LinearRegression:
             `y` share the same weight :math:`w_i`. If None, examples are
             weighted equally, resulting in the standard linear least squares
             update.  Default is None.
+            与 `X` 中样本相关的权重。权重较大的样本对模型拟合的影响更大。
+            当 `y` 是一个向量时（即 `K = 1`），权重应设置为每个测量值方差的倒数
+            （即 :math:`w_i = 1/\sigma^2_i`）。当 `K > 1` 时，假定 `y` 的所有列
+            共享相同的权重 :math:`w_i`。如果为 None，则样本权重相等，此时为标准的
+            线性最小二乘更新。默认为 None。
 
         Returns
         -------
@@ -196,20 +223,25 @@ class LinearRegression:
         """  # noqa: E501
         N = X.shape[0]
 
+        # 如果未提供权重，则默认为单位权重
         weights = np.ones(N) if weights is None else np.atleast_1d(weights)
         weights = np.squeeze(weights) if weights.size > 1 else weights
         err_str = f"weights must have shape ({N},) but got {weights.shape}"
         assert weights.shape == (N,), err_str
 
+        # 根据每个样本的权重缩放 X 和 y
         # scale X and y by the weight associated with each example
         W = np.diag(np.sqrt(weights))
         X, y = W @ X, W @ y
 
+        # 如果需要拟合截距，则将 X 转换为设计矩阵
         # convert X to a design matrix if we're fitting an intercept
         if self.fit_intercept:
             X = np.c_[np.sqrt(weights), X]
 
+        # 计算协方差矩阵的伪逆
         self.sigma_inv = np.linalg.pinv(X.T @ X)
+        # 计算模型系数 beta
         self.beta = np.atleast_2d(self.sigma_inv @ X.T @ y)
 
         self._is_fit = True
@@ -219,18 +251,23 @@ class LinearRegression:
         """
         Use the trained model to generate predictions on a new collection of
         data points.
+        使用训练好的模型对新的数据点集合生成预测。
 
         Parameters
         ----------
         X : :py:class:`ndarray <numpy.ndarray>` of shape `(Z, M)`
             A dataset consisting of `Z` new examples, each of dimension `M`.
+            一个包含 `Z` 个新样本的数据集，每个样本的维度为 `M`。
 
         Returns
         -------
         y_pred : :py:class:`ndarray <numpy.ndarray>` of shape `(Z, K)`
             The model predictions for the items in `X`.
+            模型对 `X` 中样本的预测值。
         """
+        # 如果模型包含截距项，在 X 前面加上一列 1
         # convert X to a design matrix if we're fitting an intercept
         if self.fit_intercept:
             X = np.c_[np.ones(X.shape[0]), X]
+        # 计算预测值
         return X @ self.beta

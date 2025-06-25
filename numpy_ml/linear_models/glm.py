@@ -50,6 +50,7 @@ class GeneralizedLinearModel:
         r"""
         A generalized linear model with maximum likelihood fit via
         iteratively reweighted least squares (IRLS).
+        一个通过迭代重加权最小二乘法（IRLS）进行最大似然拟合的广义线性模型。
 
         Notes
         -----
@@ -100,20 +101,25 @@ class GeneralizedLinearModel:
         ----------
         link: {'identity', 'logit', 'log'}
             The link function to use during modeling.
+            在建模过程中使用的链接函数。
         fit_intercept: bool
             Whether to fit an intercept term in addition to the model
             coefficients. Default is True.
+            是否在模型系数之外拟合截距项。默认为 True。
         tol : float
             The minimum difference between successive iterations of IRLS
             Default is 1e-5.
+            IRLS 连续迭代之间的最小差异。默认为 1e-5。
         max_iter: int
             The maximum number of iteratively reweighted least squares
             iterations to run during fitting. Default is 100.
+            在拟合期间运行的迭代重加权最小二乘法的最大迭代次数。默认为 100。
 
         Attributes
         ----------
         beta : :py:class:`ndarray <numpy.ndarray>` of shape `(M, 1)` or None
             Fitted model coefficients.
+            拟合后的模型系数。
         """
         err_str = f"Valid link functions are {list(_GLM_LINKS.keys())} but got {link}"
         assert link in _GLM_LINKS, err_str
@@ -129,13 +135,16 @@ class GeneralizedLinearModel:
     def fit(self, X, y):
         """
         Find the maximum likelihood GLM coefficients via IRLS.
+        通过 IRLS 找到最大似然的 GLM 系数。
 
         Parameters
         ----------
         X : :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
             A dataset consisting of `N` examples, each of dimension `M`.
+            一个由 `N` 个样本组成的数据集，每个样本的维度为 `M`。
         y : :py:class:`ndarray <numpy.ndarray>` of shape `(N,)`
             The targets for each of the `N` examples in `X`.
+            `X` 中 `N` 个样本对应的目标。
 
         Returns
         -------
@@ -147,15 +156,18 @@ class GeneralizedLinearModel:
         N, M = X.shape
         L = _GLM_LINKS[self.link]
 
+        # 初始化参数
         # starting values for parameters
         mu = np.ones_like(y) * np.mean(y)
         eta = L["link"](mu)
         theta = L["theta"](mu)
 
+        # 如果需要拟合截距，则将 X 转换为设计矩阵
         # convert X to a design matrix if we're fitting an intercept
         if self.fit_intercept:
             X = np.c_[np.ones(N), X]
 
+        # GLM 的迭代重加权最小二乘法（IRLS）
         # IRLS for GLM
         i = 0
         diff, beta = np.inf, np.inf
@@ -164,18 +176,23 @@ class GeneralizedLinearModel:
                 print("Warning: Model did not converge")
                 break
 
+            # 计算工作因变量 z (响应变量的一阶泰勒近似)
             # compute first-order Taylor approx.
             z = eta + (y - mu) * L["link_prime"](mu)
+            # 计算权重 w
             w = L["p"] / (L["b_prime2"](theta) * L["link_prime"](mu) ** 2)
 
+            # 对 z 执行加权最小二乘回归
             # perform weighted least-squares on z
             wlr = LinearRegression(fit_intercept=False)
             beta_new = wlr.fit(X, z, weights=w).beta.ravel()
 
+            # 更新参数
             eta = X @ beta_new
             mu = L["inv_link"](eta)
             theta = L["theta"](mu)
 
+            # 计算新旧 beta 的差异以检查收敛性
             diff = np.linalg.norm(beta - beta_new, ord=1)
             beta = beta_new
             i += 1
@@ -189,24 +206,29 @@ class GeneralizedLinearModel:
         Use the trained model to generate predictions for the distribution
         means, :math:`\mu`, associated with the collection of data points in
         **X**.
+        使用训练好的模型为数据集 **X** 中的数据点生成关于分布均值 :math:`\mu` 的预测。
 
         Parameters
         ----------
         X : :py:class:`ndarray <numpy.ndarray>` of shape `(Z, M)`
             A dataset consisting of `Z` new examples, each of dimension `M`.
+            一个由 `Z` 个新样本组成的数据集，每个样本的维度为 `M`。
 
         Returns
         -------
         mu_pred : :py:class:`ndarray <numpy.ndarray>` of shape `(Z,)`
             The model predictions for the expected value of the target
             associated with each item in `X`.
+            模型对 `X` 中每个样本相关目标期望值的预测。
         """
         assert self._is_fit, "Must call `fit` before generating predictions"
         L = _GLM_LINKS[self.link]
 
+        # 如果使用截距，则将 X 转换为设计矩阵
         # convert X to a design matrix if we're using an intercept
         if self.fit_intercept:
             X = np.c_[np.ones(X.shape[0]), X]
 
+        # 通过链接函数的逆函数计算预测的均值
         mu_pred = L["inv_link"](X @ self.beta)
         return mu_pred.ravel()
